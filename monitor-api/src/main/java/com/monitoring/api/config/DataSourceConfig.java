@@ -1,44 +1,33 @@
 package com.monitoring.api.config;
 
-import org.springframework.boot.jdbc.DataSourceBuilder;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
-import org.springframework.core.env.Environment;
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.env.EnvironmentPostProcessor;
+import org.springframework.core.env.ConfigurableEnvironment;
+import org.springframework.core.env.MapPropertySource;
 
-import javax.sql.DataSource;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
- * Configuração do DataSource para ajustar URL do Render.com
+ * Processa variáveis de ambiente ANTES do Spring Boot inicializar
  * 
- * O Render fornece URLs no formato: postgresql://user:pass@host/db
+ * O Render.com fornece URLs no formato: postgresql://user:pass@host/db
  * O Spring Boot precisa de: jdbc:postgresql://user:pass@host/db
+ * 
+ * Este processor adiciona o prefixo jdbc: automaticamente
  */
-@Configuration
-public class DataSourceConfig {
+public class DataSourceConfig implements EnvironmentPostProcessor {
 
-    private final Environment env;
-
-    public DataSourceConfig(Environment env) {
-        this.env = env;
-    }
-
-    @Bean
-    public DataSource dataSource() {
-        String url = env.getProperty("spring.datasource.url", "jdbc:postgresql://localhost:5432/monitoring");
+    @Override
+    public void postProcessEnvironment(ConfigurableEnvironment environment, SpringApplication application) {
+        String url = environment.getProperty("SPRING_DATASOURCE_URL");
         
-        // Se a URL não começa com jdbc:, adiciona o prefixo
-        if (!url.startsWith("jdbc:")) {
-            url = "jdbc:" + url;
+        if (url != null && !url.startsWith("jdbc:")) {
+            Map<String, Object> props = new HashMap<>();
+            props.put("spring.datasource.url", "jdbc:" + url);
+            
+            environment.getPropertySources()
+                    .addFirst(new MapPropertySource("renderDatabaseUrlFix", props));
         }
-        
-        String username = env.getProperty("spring.datasource.username", "monitor");
-        String password = env.getProperty("spring.datasource.password", "monitor123");
-        
-        return DataSourceBuilder.create()
-                .url(url)
-                .username(username)
-                .password(password)
-                .driverClassName("org.postgresql.Driver")
-                .build();
     }
 }
