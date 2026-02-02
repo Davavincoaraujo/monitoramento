@@ -7,6 +7,83 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Entidade que representa uma execução (Run) de check em um Site.
+ * 
+ * <p>Uma Run é criada cada vez que o sistema executa um check sintético em um site.
+ * Ela agrega:</p>
+ * <ul>
+ *   <li>Resultados de performance por página (PageResult)</li>
+ *   <li>Falhas detectadas (Failure)</li>
+ *   <li>Erros de request HTTP (RequestError)</li>
+ *   <li>Contadores de issues por severidade</li>
+ *   <li>Status final da execução</li>
+ *   <li>Timestamps de início e fim</li>
+ * </ul>
+ * 
+ * <p><b>Status possíveis (RunStatus):</b></p>
+ * <pre>
+ * RUNNING  - Execução em andamento
+ * SUCCESS  - Concluído sem issues críticas/major (apenas minor ou nenhuma)
+ * WARNING  - Concluído apenas com issues minor
+ * FAILED   - Concluído com issues críticas ou major
+ * ERROR    - Falha na própria execução (timeout, crash, etc)
+ * </pre>
+ * 
+ * <p><b>Contadores de Severidade:</b></p>
+ * <ul>
+ *   <li>criticalCount: Issues de severidade CRITICAL (impacto alto)</li>
+ *   <li>majorCount: Issues de severidade MAJOR (impacto médio)</li>
+ *   <li>minorCount: Issues de severidade MINOR (impacto baixo)</li>
+ * </ul>
+ * 
+ * <p><b>Relacionamentos:</b></p>
+ * <pre>
+ * Run N:1 Site            - Cada run pertence a um site
+ * Run 1:N PageResult      - Uma run testa múltiplas páginas
+ * Run 1:N Failure         - Uma run pode ter múltiplas falhas
+ * Run 1:N RequestError    - Uma run pode ter múltiplos erros HTTP
+ * </pre>
+ * 
+ * <p><b>Lifecycle:</b></p>
+ * <ol>
+ *   <li>Criação: status=RUNNING, startedAt=now()</li>
+ *   <li>Execução: playwright coleta métricas, detecta erros</li>
+ *   <li>Finalização: endedAt=now(), status atualizado baseado em contadores</li>
+ *   <li>Persistência: cascade ALL para resultados, falhas, erros</li>
+ * </ol>
+ * 
+ * <p><b>Queries Otimizadas:</b></p>
+ * <pre>
+ * - Index composto em (site_id, started_at) para:
+ *   * Buscar runs de um site ordenadas por data
+ *   * Calcular uptime em período
+ *   * Gerar séries temporais
+ * </pre>
+ * 
+ * <p><b>Lazy Loading:</b></p>
+ * <ul>
+ *   <li>site: LAZY (evita N+1 queries)</li>
+ *   <li>pageResults: LAZY (carrega sob demanda)</li>
+ *   <li>failures: LAZY (pode ter muitas falhas)</li>
+ *   <li>requestErrors: LAZY (pode ter muitos erros)</li>
+ * </ul>
+ * 
+ * <p><b>IMPORTANTE:</b> Ao serializar para JSON, forçar hydrate das coleções lazy:
+ * <pre>
+ * run.getFailures().size();  // Força carregamento
+ * </pre>
+ * </p>
+ * 
+ * @author Sistema de Monitoramento
+ * @version 1.0
+ * @since 2026-02-02
+ * @see Site
+ * @see PageResult
+ * @see Failure
+ * @see RequestError
+ * @see RunStatus
+ */
 @Entity
 @Table(name = "runs", indexes = {
     @Index(name = "idx_runs_site_started", columnList = "site_id,started_at")

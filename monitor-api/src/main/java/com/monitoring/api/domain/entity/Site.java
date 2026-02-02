@@ -6,6 +6,53 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Entidade que representa um Site a ser monitorado.
+ * 
+ * <p>Um Site é a unidade principal de monitoramento. Cada site pode ter:</p>
+ * <ul>
+ *   <li>Múltiplas páginas (SitePage) a serem testadas</li>
+ *   <li>Regras de validação customizadas (Rule)</li>
+ *   <li>Histórico de execuções (Run)</li>
+ *   <li>Configuração de frequência de checks</li>
+ *   <li>Lista de destinatários para alertas por email</li>
+ * </ul>
+ * 
+ * <p><b>Relacionamentos:</b></p>
+ * <pre>
+ * Site 1:N SitePage    - Um site tem múltiplas páginas
+ * Site 1:N Run         - Um site tem múltiplas execuções
+ * Site 1:N Rule        - Um site tem múltiplas regras de validação
+ * </pre>
+ * 
+ * <p><b>Lifecycle:</b></p>
+ * <ul>
+ *   <li>Criação: timestamps preenchidos automaticamente (@PrePersist)</li>
+ *   <li>Atualização: updatedAt atualizado automaticamente (@PreUpdate)</li>
+ *   <li>Deleção: cascade orphanRemoval = true para páginas e runs</li>
+ * </ul>
+ * 
+ * <p><b>Validações:</b></p>
+ * <ul>
+ *   <li>name: obrigatório, máx 255 chars</li>
+ *   <li>baseUrl: obrigatório, deve ser URL válida, máx 500 chars</li>
+ *   <li>frequencySeconds: obrigatório, > 0, padrão 300s (5 min)</li>
+ *   <li>enabled: obrigatório, padrão true</li>
+ * </ul>
+ * 
+ * <p><b>Indexação:</b></p>
+ * <pre>
+ * - PK em id
+ * - Index em (site_id, started_at) para queries de runs
+ * </pre>
+ * 
+ * @author Sistema de Monitoramento
+ * @version 1.0
+ * @since 2026-02-02
+ * @see SitePage
+ * @see Run
+ * @see Rule
+ */
 @Entity
 @Table(name = "sites")
 public class Site {

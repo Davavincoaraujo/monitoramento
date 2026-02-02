@@ -18,6 +18,31 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
+/**
+ * REST Controller para gerenciamento de Sites monitorados.
+ * 
+ * <p>Fornece endpoints para:</p>
+ * <ul>
+ *   <li>CRUD completo de sites</li>
+ *   <li>Configuração de páginas a serem monitoradas</li>
+ *   <li>Trigger manual de checks via RabbitMQ</li>
+ *   <li>Parsing de URLs completas (baseUrl + path)</li>
+ * </ul>
+ * 
+ * <p><b>Endpoints principais:</b></p>
+ * <pre>
+ * GET    /api/sites           - Lista todos os sites
+ * GET    /api/sites/{id}      - Busca site por ID
+ * POST   /api/sites           - Cria novo site
+ * PUT    /api/sites/{id}      - Atualiza site
+ * DELETE /api/sites/{id}      - Remove site
+ * POST   /api/sites/{id}/check - Executa check manual
+ * </pre>
+ * 
+ * @author Sistema de Monitoramento
+ * @version 1.0
+ * @since 2026-02-02
+ */
 @RestController
 @RequestMapping("/api/sites")
 public class SiteController {

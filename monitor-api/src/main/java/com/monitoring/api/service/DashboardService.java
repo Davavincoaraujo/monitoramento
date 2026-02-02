@@ -11,6 +11,45 @@ import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
+/**
+ * Service responsável por agregar e processar dados para o Dashboard.
+ * 
+ * <p>Este service realiza cálculos complexos e agregações de dados de múltiplas fontes
+ * para fornecer uma visão consolidada do status e performance dos sites monitorados.</p>
+ * 
+ * <p><b>Principais funcionalidades:</b></p>
+ * <ul>
+ *   <li>Cálculo de uptime percentage baseado em runs bem-sucedidas</li>
+ *   <li>Agregação de issues por severidade (CRITICAL, MAJOR, MINOR)</li>
+ *   <li>Cálculo de percentis de performance (P50, P95, P99)</li>
+ *   <li>Geração de séries temporais para gráficos</li>
+ *   <li>Time bucketing para agrupamento de dados por período</li>
+ * </ul>
+ * 
+ * <p><b>Ranges suportados:</b></p>
+ * <pre>
+ * 1h  - Última hora
+ * 6h  - Últimas 6 horas
+ * 24h - Últimas 24 horas (padrão)
+ * 7d  - Últimos 7 dias
+ * 30d - Últimos 30 dias
+ * </pre>
+ * 
+ * <p><b>Buckets para time series:</b></p>
+ * <pre>
+ * 5m  - Agrupamento de 5 minutos
+ * 1h  - Agrupamento de 1 hora (padrão)
+ * 6h  - Agrupamento de 6 horas
+ * 1d  - Agrupamento diário
+ * </pre>
+ * 
+ * @author Sistema de Monitoramento
+ * @version 1.0
+ * @since 2026-02-02
+ * @see DashboardController
+ * @see OverviewResponse
+ * @see TimeSeriesDTO
+ */
 @Service
 public class DashboardService {
     
@@ -30,6 +69,34 @@ public class DashboardService {
         this.failureRepository = failureRepository;
     }
     
+    /**
+     * Retorna overview completo do site com métricas agregadas.
+     * 
+     * <p>Agrega dados de:</p>
+     * <ul>
+     *   <li>Status atual (UP/DOWN baseado na última run)</li>
+     *   <li>Uptime percentage (success rate)</li>
+     *   <li>Issues por severidade (contagem de CRITICAL, MAJOR, MINOR)</li>
+     *   <li>Métricas de performance (P50, P95, P99 de load time e TTFB)</li>
+     *   <li>Informações da última execução</li>
+     * </ul>
+     * 
+     * <p><b>Cálculo de Uptime:</b><br>
+     * uptime% = (runs SUCCESS / total runs) * 100
+     * </p>
+     * 
+     * <p><b>Status:</b><br>
+     * UP - Última run foi SUCCESS ou WARNING<br>
+     * DOWN - Última run foi FAILED ou ERROR<br>
+     * UNKNOWN - Nenhuma run encontrada
+     * </p>
+     * 
+     * @param siteId ID do site a ser analisado
+     * @param range Período de análise (1h, 6h, 24h, 7d, 30d)
+     * @return OverviewResponse com todas as métricas agregadas
+     * @throws IllegalArgumentException se o site não existir
+     * @see OverviewResponse
+     */
     public OverviewResponse getOverview(Long siteId, String range) {
         Site site = siteRepository.findById(siteId)
             .orElseThrow(() -> new IllegalArgumentException("Site not found"));

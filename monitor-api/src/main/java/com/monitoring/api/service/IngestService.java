@@ -9,6 +9,86 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+/**
+ * Service responsável por ingerir resultados de execuções (Runs) enviados pelo monitor-runner.
+ * 
+ * <p>Este é o ponto de entrada dos resultados coletados pelo Playwright. O runner executa
+ * os checks sintéticos e envia os dados via POST /api/ingest/runs.</p>
+ * 
+ * <p><b>Fluxo de Ingestão:</b></p>
+ * <ol>
+ *   <li>Recebe IngestRunRequest com todos os resultados</li>
+ *   <li>Valida que o site existe no banco</li>
+ *   <li>Cria entidade Run com status e timestamps</li>
+ *   <li>Persiste PageResults (métricas de performance por página)</li>
+ *   <li>Persiste Failures (erros detectados)</li>
+ *   <li>Persiste RequestErrors (falhas HTTP)</li>
+ *   <li>Calcula contadores por severidade (critical, major, minor)</li>
+ *   <li>Determina status final da Run (SUCCESS, WARNING, FAILED, ERROR)</li>
+ *   <li>Salva Run no banco (cascade persiste relacionamentos)</li>
+ *   <li>Publica evento SSE para clientes conectados (live monitoring)</li>
+ * </ol>
+ * 
+ * <p><b>Determinação de Status:</b></p>
+ * <pre>
+ * ERROR    - Se request tem error != null
+ * FAILED   - Se criticalCount > 0 ou majorCount > 0
+ * WARNING  - Se minorCount > 0 (apenas issues minor)
+ * SUCCESS  - Se nenhum issue encontrado
+ * </pre>
+ * 
+ * <p><b>Contadores de Severidade:</b></p>
+ * <ul>
+ *   <li>criticalCount: soma de failures com severity = CRITICAL</li>
+ *   <li>majorCount: soma de failures com severity = MAJOR</li>
+ *   <li>minorCount: soma de failures com severity = MINOR</li>
+ * </ul>
+ * 
+ * <p><b>Transações:</b></p>
+ * <pre>
+ * @Transactional garante atomicidade:
+ * - Rollback completo se qualquer parte falhar
+ * - Todas as entidades (Run, PageResults, Failures, RequestErrors) persistidas juntas
+ * - Evento SSE publicado apenas após commit
+ * </pre>
+ * 
+ * <p><b>Relacionamentos Cascata:</b></p>
+ * <pre>
+ * Run (parent)
+ *   |-- PageResult (cascade ALL, orphanRemoval)
+ *   |-- Failure (cascade ALL, orphanRemoval)
+ *   |-- RequestError (cascade ALL, orphanRemoval)
+ * 
+ * Apenas Run precisa ser salva explicitamente, os demais cascateiam.
+ * </pre>
+ * 
+ * <p><b>Validações:</b></p>
+ * <ul>
+ *   <li>siteId deve existir no banco (throws IllegalArgumentException)</li>
+ *   <li>pageId (em PageResultDTO) deve existir no banco</li>
+ *   <li>Timestamps devem estar presentes (startedAt, endedAt)</li>
+ *   <li>Status deve ser válido (enum RunStatus)</li>
+ * </ul>
+ * 
+ * <p><b>Eventos Publicados:</b></p>
+ * <pre>
+ * EventPublisher publica evento SSE após ingestão:
+ * - Topic: site_{siteId}
+ * - Event: run-completed
+ * - Data: RunSummaryDTO com status, counts, timestamp
+ * 
+ * Clientes conectados via GET /api/events?siteId=X recebem atualizações em tempo real.
+ * </pre>
+ * 
+ * @author Sistema de Monitoramento
+ * @version 1.0
+ * @since 2026-02-02
+ * @see IngestRunRequest
+ * @see Run
+ * @see PageResult
+ * @see Failure
+ * @see EventPublisher
+ */
 @Service
 public class IngestService {
     private static final Logger log = LoggerFactory.getLogger(IngestService.class);

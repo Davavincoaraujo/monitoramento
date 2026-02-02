@@ -12,6 +12,77 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Executor principal responsável por executar testes sintéticos usando Playwright.
+ * 
+ * <p>Este componente orquestra todo o processo de automação de browser:</p>
+ * <ul>
+ *   <li>Launch e configuração do browser (Firefox/WebKit/Chromium)</li>
+ *   <li>Navegação para páginas do site</li>
+ *   <li>Coleta de métricas de performance (TTFB, Load Time, DOM Content)</li>
+ *   <li>Detecção de erros JavaScript e console</li>
+ *   <li>Validação de requests HTTP</li>
+ *   <li>Captura de falhas e screenshots (se necessário)</li>
+ * </ul>
+ * 
+ * <p><b>Browsers suportados:</b></p>
+ * <pre>
+ * firefox  - Firefox (padrão, recomendado para ARM64 macOS)
+ * webkit   - WebKit (Safari engine, fallback)
+ * chromium - Chromium (pode crashar em ARM64)
+ * </pre>
+ * 
+ * <p><b>Configurações disponíveis:</b></p>
+ * <pre>
+ * playwright.headless=true              - Executar sem UI
+ * playwright.timeout-ms=30000           - Timeout padrão (30s)
+ * playwright.viewport-width=1920        - Largura da viewport
+ * playwright.viewport-height=1080       - Altura da viewport
+ * playwright.browser=firefox            - Browser a usar
+ * </pre>
+ * 
+ * <p><b>Fluxo de execução:</b></p>
+ * <ol>
+ *   <li>Launch browser com configurações especificadas</li>
+ *   <li>Create browser context (isolação, cookies, etc)</li>
+ *   <li>Setup event listeners (erros, console, requests)</li>
+ *   <li>Para cada página do site:
+ *     <ul>
+ *       <li>Navigate com timeout</li>
+ *       <li>Wait for load state</li>
+ *       <li>Collect performance metrics</li>
+ *       <li>Detect errors</li>
+ *       <li>Save results</li>
+ *     </ul>
+ *   </li>
+ *   <li>Close browser</li>
+ *   <li>Aggregate and return results</li>
+ * </ol>
+ * 
+ * <p><b>Métricas coletadas:</b></p>
+ * <ul>
+ *   <li>TTFB (Time to First Byte) - Navigation Timing API</li>
+ *   <li>Load Time - Tempo total de carregamento</li>
+ *   <li>DOM Content Loaded - DOMContentLoaded event</li>
+ *   <li>Request Count - Total de requests HTTP</li>
+ *   <li>Failed Requests - Requests que falharam</li>
+ * </ul>
+ * 
+ * <p><b>Tipos de erros detectados:</b></p>
+ * <ul>
+ *   <li>REQUEST_FAILED - Falha em request HTTP (timeout, abort)</li>
+ *   <li>JS_ERROR - Erro JavaScript não capturado (uncaught exception)</li>
+ *   <li>CONSOLE_ERROR - Erro logado no console do browser</li>
+ *   <li>NAVIGATION_FAILED - Falha ao navegar para página</li>
+ * </ul>
+ * 
+ * @author Sistema de Monitoramento
+ * @version 1.0
+ * @since 2026-02-02
+ * @see com.microsoft.playwright.Playwright
+ * @see IngestRunRequest
+ * @see PageCheckResult
+ */
 @Component
 public class PlaywrightExecutor {
     private static final Logger log = LoggerFactory.getLogger(PlaywrightExecutor.class);
