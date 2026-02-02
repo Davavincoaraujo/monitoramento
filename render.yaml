@@ -1,0 +1,82 @@
+# Render.com Blueprint - Deploy gratuito do sistema de monitoramento
+# Após conectar ao GitHub, Render lê este arquivo e provisiona tudo automaticamente
+
+services:
+  # PostgreSQL Database (Free)
+  - type: pserv
+    name: monitor-postgres
+    env: docker
+    plan: free
+    region: oregon
+    envVars:
+      - key: POSTGRES_DB
+        value: monitoring
+      - key: POSTGRES_USER
+        value: monitor
+      - key: POSTGRES_PASSWORD
+        generateValue: true
+    disk:
+      name: postgres-data
+      mountPath: /var/lib/postgresql/data
+      sizeGB: 1
+
+  # Monitor API (Web Service - Free 750h/mês)
+  - type: web
+    name: monitor-api
+    env: docker
+    dockerfilePath: ./monitor-api/Dockerfile
+    plan: free
+    region: oregon
+    healthCheckPath: /actuator/health
+    envVars:
+      - key: SPRING_PROFILES_ACTIVE
+        value: production
+      - key: SPRING_DATASOURCE_URL
+        fromService:
+          type: pserv
+          name: monitor-postgres
+          property: connectionString
+      - key: SPRING_DATASOURCE_USERNAME
+        fromService:
+          type: pserv
+          name: monitor-postgres
+          envVarKey: POSTGRES_USER
+      - key: SPRING_DATASOURCE_PASSWORD
+        fromService:
+          type: pserv
+          name: monitor-postgres
+          envVarKey: POSTGRES_PASSWORD
+      - key: RABBITMQ_HOST
+        value: localhost
+      - key: RABBITMQ_PORT
+        value: 5672
+      - key: JAVA_OPTS
+        value: "-Xmx512m -Xms256m"
+    buildCommand: cd monitor-api && mvn clean package -DskipTests
+    startCommand: java $JAVA_OPTS -jar /app/target/monitor-api-1.0.0.jar
+
+  # Monitor Runner (Background Worker - Free)
+  - type: worker
+    name: monitor-runner
+    env: docker
+    dockerfilePath: ./monitor-runner/Dockerfile
+    plan: free
+    region: oregon
+    envVars:
+      - key: SPRING_PROFILES_ACTIVE
+        value: production
+      - key: MONITOR_API_BASE_URL
+        fromService:
+          type: web
+          name: monitor-api
+          property: hostport
+      - key: RABBITMQ_HOST
+        value: localhost
+      - key: RABBITMQ_PORT
+        value: 5672
+      - key: PLAYWRIGHT_BROWSERS_PATH
+        value: /ms-playwright
+      - key: JAVA_OPTS
+        value: "-Xmx768m -Xms384m"
+    buildCommand: cd monitor-runner && mvn clean package -DskipTests && mvn exec:java -e -D exec.mainClass=com.microsoft.playwright.CLI -D exec.args="install firefox"
+    startCommand: java $JAVA_OPTS -jar /app/target/monitor-runner-1.0.0.jar
