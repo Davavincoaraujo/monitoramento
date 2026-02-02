@@ -1,8 +1,5 @@
-# Render.com Blueprint - Deploy gratuito do sistema de monitoramento
-# Após conectar ao GitHub, Render lê este arquivo e provisiona tudo automaticamente
-
 services:
-  # PostgreSQL Database (Free) - sem disco persistente no free tier
+  # PostgreSQL Database (Free)
   - type: pserv
     name: monitor-postgres
     plan: free
@@ -10,13 +7,14 @@ services:
     databaseName: monitoring
     databaseUser: monitor
 
-  # Monitor API (Web Service - Free 750h/mês)
+  # Monitor API (Web Service)
   - type: web
     name: monitor-api
-    env: docker
-    dockerfilePath: ./monitor-api/Dockerfile
+    runtime: docker
     plan: free
     region: oregon
+    dockerfilePath: ./monitor-api/Dockerfile
+    dockerContext: ./monitor-api
     healthCheckPath: /actuator/health
     envVars:
       - key: SPRING_PROFILES_ACTIVE
