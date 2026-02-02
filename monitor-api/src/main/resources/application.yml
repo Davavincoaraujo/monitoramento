@@ -31,14 +31,18 @@ spring:
     locations: classpath:db/migration
   
   rabbitmq:
-    host: localhost
-    port: 5672
-    username: monitor
-    password: monitor123
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME:monitor}
+    password: ${RABBITMQ_PASSWORD:monitor123}
     listener:
       simple:
         acknowledge-mode: auto
         prefetch: 1
+  
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.amqp.RabbitAutoConfiguration
   
   mail:
     host: smtp.gmail.com
