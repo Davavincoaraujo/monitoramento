@@ -1,0 +1,73 @@
+spring:
+  application:
+    name: monitor-api
+  
+  datasource:
+    url: jdbc:postgresql://localhost:5432/monitoring
+    username: monitor
+    password: monitor123
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      connection-timeout: 30000
+  
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+        jdbc:
+          batch_size: 20
+        order_inserts: true
+        order_updates: true
+  
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    locations: classpath:db/migration
+  
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: monitor
+    password: monitor123
+    listener:
+      simple:
+        acknowledge-mode: auto
+        prefetch: 1
+  
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: ${SMTP_USERNAME:}
+    password: ${SMTP_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+
+server:
+  port: 8080
+  compression:
+    enabled: true
+
+# Quartz Scheduler
+spring.quartz:
+  job-store-type: memory
+
+# Application specific
+monitoring:
+  default-check-frequency-seconds: 300
+  max-concurrent-runs: 5
+  data-retention-days: 30
+  weekly-report-timezone: America/Sao_Paulo
+  weekly-report-cron: "0 0 20 ? * SUN"
+  email:
+    from: noreply@monitoring.com
+    enabled: true

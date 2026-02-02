@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Weekly Monitoring Report</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background-color: #ffffff;
+            border-radius: 8px;
+            padding: 40px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #1a1a1a;
+            font-size: 28px;
+            margin-bottom: 10px;
+            border-bottom: 3px solid #0066cc;
+            padding-bottom: 10px;
+        }
+        .period {
+            color: #666;
+            font-size: 14px;
+            margin-bottom: 30px;
+        }
+        .metric-card {
+            background: #f8f9fa;
+            border-left: 4px solid #0066cc;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-radius: 4px;
+        }
+        .metric-card.success {
+            border-left-color: #28a745;
+        }
+        .metric-card.warning {
+            border-left-color: #ffc107;
+        }
+        .metric-card.danger {
+            border-left-color: #dc3545;
+        }
+        .metric-title {
+            font-size: 14px;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+        }
+        .metric-value {
+            font-size: 32px;
+            font-weight: bold;
+            color: #1a1a1a;
+        }
+        .metric-comparison {
+            font-size: 14px;
+            color: #666;
+            margin-top: 8px;
+        }
+        .metric-comparison.improved {
+            color: #28a745;
+        }
+        .metric-comparison.degraded {
+            color: #dc3545;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            margin-bottom: 30px;
+        }
+        th, td {
+            text-align: left;
+            padding: 12px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        th {
+            background-color: #f8f9fa;
+            font-weight: 600;
+            color: #666;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        td {
+            font-size: 14px;
+        }
+        .severity-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        .severity-critical {
+            background-color: #fee;
+            color: #c00;
+        }
+        .severity-major {
+            background-color: #fff3cd;
+            color: #856404;
+        }
+        .severity-minor {
+            background-color: #d1ecf1;
+            color: #0c5460;
+        }
+        .section {
+            margin-top: 40px;
+        }
+        .section-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: #1a1a1a;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #e0e0e0;
+            padding-bottom: 10px;
+        }
+        .cta-button {
+            display: inline-block;
+            background-color: #0066cc;
+            color: #ffffff;
+            padding: 12px 24px;
+            text-decoration: none;
+            border-radius: 4px;
+            font-weight: 600;
+            margin-top: 30px;
+        }
+        .footer {
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 1px solid #e0e0e0;
+            font-size: 12px;
+            color: #999;
+            text-align: center;
+        }
+        .no-data {
+            text-align: center;
+            color: #999;
+            padding: 20px;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 th:text="${report.siteName}">Site Name</h1>
+        <div class="period">
+            Weekly Report: 
+            <span th:text="${#temporals.format(report.weekStart, 'dd MMM yyyy')}">01 Jan 2024</span> - 
+            <span th:text="${#temporals.format(report.weekEnd, 'dd MMM yyyy')}">07 Jan 2024</span>
+        </div>
+
+        <!-- Uptime -->
+        <div class="metric-card" 
+             th:classappend="${report.uptimePercent >= 99.5} ? 'success' : ${report.uptimePercent >= 95} ? 'warning' : 'danger'">
+            <div class="metric-title">Uptime</div>
+            <div class="metric-value" th:text="${#numbers.formatDecimal(report.uptimePercent, 1, 2)} + '%'">99.50%</div>
+        </div>
+
+        <!-- Failures Summary -->
+        <div class="section">
+            <div class="section-title">Issues Summary</div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Severity</th>
+                        <th>Count</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr th:if="${report.failuresBySeverity.containsKey('CRITICAL')}">
+                        <td><span class="severity-badge severity-critical">Critical</span></td>
+                        <td th:text="${report.failuresBySeverity.get('CRITICAL')}">0</td>
+                    </tr>
+                    <tr th:if="${report.failuresBySeverity.containsKey('MAJOR')}">
+                        <td><span class="severity-badge severity-major">Major</span></td>
+                        <td th:text="${report.failuresBySeverity.get('MAJOR')}">0</td>
+                    </tr>
+                    <tr th:if="${report.failuresBySeverity.containsKey('MINOR')}">
+                        <td><span class="severity-badge severity-minor">Minor</span></td>
+                        <td th:text="${report.failuresBySeverity.get('MINOR')}">0</td>
+                    </tr>
+                    <tr th:if="${report.failuresBySeverity.isEmpty()}">
+                        <td colspan="2" class="no-data">No issues detected this week</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Performance -->
+        <div class="section">
+            <div class="section-title">Performance Metrics</div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                <div class="metric-card">
+                    <div class="metric-title">P95 Load Time</div>
+                    <div class="metric-value" th:text="${report.performance.p95LoadMs() != null ? report.performance.p95LoadMs() + 'ms' : 'N/A'}">1500ms</div>
+                    <div class="metric-comparison" 
+                         th:if="${report.performance.p95LoadMs() != null and report.previousWeekPerformance.p95LoadMs() != null}"
+                         th:classappend="${report.performance.p95LoadMs() < report.previousWeekPerformance.p95LoadMs()} ? 'improved' : 'degraded'"
+                         th:text="${report.performance.p95LoadMs() < report.previousWeekPerformance.p95LoadMs()} 
+                                   ? '▼ Improved from ' + ${report.previousWeekPerformance.p95LoadMs()} + 'ms'
+                                   : '▲ From ' + ${report.previousWeekPerformance.p95LoadMs()} + 'ms'">
+                        vs previous week
+                    </div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-title">P95 TTFB</div>
+                    <div class="metric-value" th:text="${report.performance.p95TtfbMs() != null ? report.performance.p95TtfbMs() + 'ms' : 'N/A'}">800ms</div>
+                    <div class="metric-comparison"
+                         th:if="${report.performance.p95TtfbMs() != null and report.previousWeekPerformance.p95TtfbMs() != null}"
+                         th:classappend="${report.performance.p95TtfbMs() < report.previousWeekPerformance.p95TtfbMs()} ? 'improved' : 'degraded'"
+                         th:text="${report.performance.p95TtfbMs() < report.previousWeekPerformance.p95TtfbMs()} 
+                                   ? '▼ Improved from ' + ${report.previousWeekPerformance.p95TtfbMs()} + 'ms'
+                                   : '▲ From ' + ${report.previousWeekPerformance.p95TtfbMs()} + 'ms'">
+                        vs previous week
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Top Issues -->
+        <div class="section" th:if="${not #lists.isEmpty(report.topIssues)}">
+            <div class="section-title">Top 5 Recurring Issues</div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Type</th>
+                        <th>Message</th>
+                        <th>Occurrences</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr th:each="issue : ${report.topIssues}">
+                        <td th:text="${issue.type()}">Type</td>
+                        <td th:text="${issue.message()}">Message</td>
+                        <td th:text="${issue.count()}">10</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Slowest Pages -->
+        <div class="section" th:if="${not #lists.isEmpty(report.slowestPages)}">
+            <div class="section-title">Top 5 Slowest Pages</div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Page</th>
+                        <th>Avg Load Time</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr th:each="page : ${report.slowestPages}">
+                        <td th:text="${page.pageName()}">Page Name</td>
+                        <td th:text="${page.avgLoadMs()} + 'ms'">1500ms</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Top 404 Assets -->
+        <div class="section" th:if="${not #lists.isEmpty(report.top404Assets)}">
+            <div class="section-title">Top 10 Missing Assets (404)</div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>URL</th>
+                        <th>Count</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr th:each="asset : ${report.top404Assets}">
+                        <td th:text="${asset.url()}" style="word-break: break-all;">URL</td>
+                        <td th:text="${asset.count()}">5</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div style="text-align: center;">
+            <a th:href="${report.dashboardLink}" class="cta-button">View Dashboard</a>
+        </div>
+
+        <div class="footer">
+            This is an automated weekly monitoring report. 
+            If you wish to unsubscribe, please contact your administrator.
+        </div>
+    </div>
+</body>
+</html>
