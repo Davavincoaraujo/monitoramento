@@ -1,5 +1,6 @@
 package com.monitoring.api.domain.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.monitoring.api.domain.enums.RunStatus;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
@@ -17,6 +18,7 @@ public class Run {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "site_id", nullable = false)
+    @JsonIgnoreProperties({"pages", "rules"})
     private Site site;
 
     @Column(name = "started_at", nullable = false)

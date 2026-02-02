@@ -28,6 +28,9 @@ public class PlaywrightExecutor {
     @Value("${playwright.viewport-height:1080}")
     private int viewportHeight;
     
+    @Value("${playwright.browser:firefox}")
+    private String browserType;
+    
     public IngestRunRequest executeCheck(SiteConfig siteConfig) {
         log.info("Starting check for site: {} ({})", siteConfig.name(), siteConfig.siteId());
         
@@ -40,8 +43,7 @@ public class PlaywrightExecutor {
         List<RequestErrorDTO> allRequestErrors = new ArrayList<>();
         
         try (Playwright playwright = Playwright.create()) {
-            Browser browser = playwright.chromium().launch(new BrowserType.LaunchOptions()
-                .setHeadless(headless));
+            Browser browser = launchBrowser(playwright);
             
             BrowserContext context = browser.newContext(new Browser.NewContextOptions()
                 .setViewportSize(viewportWidth, viewportHeight));
@@ -162,6 +164,35 @@ public class PlaywrightExecutor {
         page.close();
         
         return new PageExecutionResult(pageResult, failures, networkCollector.getRequestErrors());
+    }
+    
+    private Browser launchBrowser(Playwright playwright) {
+        BrowserType.LaunchOptions options = new BrowserType.LaunchOptions()
+            .setHeadless(headless)
+            .setTimeout(timeoutMs);
+        
+        try {
+            switch (browserType.toLowerCase()) {
+                case "firefox":
+                    log.info("Launching Firefox browser");
+                    return playwright.firefox().launch(options);
+                case "webkit":
+                    log.info("Launching WebKit browser");
+                    return playwright.webkit().launch(options);
+                case "chromium":
+                default:
+                    log.info("Launching Chromium browser");
+                    return playwright.chromium().launch(options);
+            }
+        } catch (Exception e) {
+            log.warn("Failed to launch {} browser, falling back to Firefox: {}", browserType, e.getMessage());
+            try {
+                return playwright.firefox().launch(options);
+            } catch (Exception ex) {
+                log.warn("Failed to launch Firefox, trying WebKit: {}", ex.getMessage());
+                return playwright.webkit().launch(options);
+            }
+        }
     }
     
     private record PageExecutionResult(

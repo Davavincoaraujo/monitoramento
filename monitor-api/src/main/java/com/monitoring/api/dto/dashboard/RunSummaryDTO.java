@@ -3,6 +3,7 @@ package com.monitoring.api.dto.dashboard;
 import com.monitoring.api.domain.enums.RunStatus;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 public record RunSummaryDTO(
     Long id,
@@ -13,5 +14,6 @@ public record RunSummaryDTO(
     Integer criticalCount,
     Integer majorCount,
     Integer minorCount,
-    String summary
+    String summary,
+    List<FailureDTO> failures
 ) {}

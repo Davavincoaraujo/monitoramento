@@ -1,5 +1,6 @@
 package com.monitoring.api.domain.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.monitoring.api.domain.enums.RuleType;
 import com.monitoring.api.domain.enums.Severity;
 import jakarta.persistence.*;
@@ -14,10 +15,12 @@ public class Rule {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "site_id", nullable = false)
+    @JsonIgnoreProperties({"pages", "rules"})
     private Site site;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "page_id")
+    @JsonIgnoreProperties("site")
     private SitePage page;
 
     @Enumerated(EnumType.STRING)

@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Monitor Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        body { background-color: #f5f5f5; padding-top: 20px; }
+        .card { margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .status-up { color: #28a745; }
+        .status-down { color: #dc3545; }
+        .status-unknown { color: #6c757d; }
+        .metric-card { text-align: center; padding: 20px; }
+        .metric-value { font-size: 2.5rem; font-weight: bold; }
+        .metric-label { color: #6c757d; font-size: 0.9rem; }
+        .navbar { margin-bottom: 30px; }
+        .issue-badge {
+            display: inline-block;
+            padding: 5px 10px;
+            border-radius: 12px;
+            font-size: 0.85rem;
+            margin: 2px;
+        }
+        .badge-critical { background: #dc3545; color: white; }
+        .badge-major { background: #ffc107; color: #000; }
+        .badge-minor { background: #17a2b8; color: white; }
+        .recommendation-box {
+            background: #e7f3ff;
+            border-left: 4px solid #007bff;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+        #errorsTable {
+            font-size: 0.9rem;
+        }
+        #errorsTable th {
+            background-color: #f8f9fa;
+            font-weight: 600;
+        }
+        .error-type {
+            font-family: monospace;
+            font-size: 0.85rem;
+            padding: 2px 6px;
+            background: #f0f0f0;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container">
+            <a class="navbar-brand" href="/">📊 Monitor Dashboard</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item"><a class="nav-link active" href="/">Dashboard</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/live.html">Monitoramento ao Vivo</a></li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="row mb-4">
+            <div class="col-md-12">
+                <h2>Selecione um Site</h2>
+                <select id="siteSelector" class="form-select form-select-lg" onchange="loadDashboard()">
+                    <option value="">Carregando sites...</option>
+                </select>
+            </div>
+        </div>
+
+        <div id="dashboardContent" style="display: none;">
+            <!-- Overview Cards -->
+            <div class="row mb-4">
+                <div class="col-md-3">
+                    <div class="card metric-card">
+                        <div class="metric-label">Status</div>
+                        <div class="metric-value" id="statusValue">-</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card metric-card">
+                        <div class="metric-label">Uptime</div>
+                        <div class="metric-value" id="uptimeValue">-</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card metric-card">
+                        <div class="metric-label">P95 Load Time</div>
+                        <div class="metric-value" id="p95LoadValue">-</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card metric-card">
+                        <div class="metric-label">Última Execução</div>
+                        <div class="metric-value" id="lastRunValue" style="font-size: 1.2rem;">-</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Issues by Severity -->
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-body">
+                            <h5 class="card-title">Issues por Severidade (24h)</h5>
+                            <canvas id="severityChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-body">
+                            <h5 class="card-title">Erros ao Longo do Tempo (24h)</h5>
+                            <canvas id="errorsChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Performance Chart -->
+            <div class="row">
+                <div class="col-md-12">
+                    <div class="card">
+                        <div class="card-body">
+                            <h5 class="card-title">Performance - Tempo de Carregamento (7 dias)</h5>
+                            <canvas id="perfChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Error Details List -->
+            <div class="row" id="errorsListSection" style="display: none;">
+                <div class="col-md-12">
+                    <div class="card">
+                        <div class="card-body">
+                            <h5 class="card-title" id="errorsListTitle">🔍 Lista Detalhada de Erros</h5>
+                            <div class="table-responsive">
+                                <table class="table table-hover" id="errorsTable">
+                                    <thead>
+                                        <tr>
+                                            <th>Data/Hora</th>
+                                            <th>Página</th>
+                                            <th>Tipo</th>
+                                            <th>Severidade</th>
+                                            <th>Mensagem</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="errorsTableBody"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Recommendations -->
+            <div class="row" id="recommendationsSection" style="display: none;">
+                <div class="col-md-12">
+                    <div class="card">
+                        <div class="card-body">
+                            <h5 class="card-title">💡 Recomendações de Melhoria</h5>
+                            <div id="recommendationsContent"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Latest Issues -->
+            <div class="row" id="issuesSection" style="display: none;">
+                <div class="col-md-12">
+                    <div class="card">
+                        <div class="card-body">
+                            <h5 class="card-title">⚠️ Problemas Recentes
+                                <button class="btn btn-sm btn-outline-primary float-end" onclick="scrollToErrorsList()" id="viewAllErrorsBtn" style="display: none;">
+                                    📋 Ver Lista Completa de Erros
+                                </button>
+                            </h5>
+                            <div id="issuesContent"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let severityChart, errorsChart, perfChart;
+
+        // Load sites on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            loadSites();
+        });
+
+        async function loadSites() {
+            try {
+                const response = await fetch('/api/sites');
+                const sites = await response.json();
+                const selector = document.getElementById('siteSelector');
+                selector.innerHTML = '<option value="">-- Selecione um site --</option>';
+                sites.forEach(site => {
+                    const option = document.createElement('option');
+                    option.value = site.id;
+                    option.textContent = `${site.name} (${site.baseUrl})`;
+                    selector.appendChild(option);
+                });
+            } catch (error) {
+                console.error('Erro ao carregar sites:', error);
+            }
+        }
+
+        async function loadDashboard() {
+            const siteId = document.getElementById('siteSelector').value;
+            if (!siteId) {
+                document.getElementById('dashboardContent').style.display = 'none';
+                return;
+            }
+
+            document.getElementById('dashboardContent').style.display = 'block';
+
+            try {
+                // Load overview
+                const overview = await fetch(`/api/dashboard/overview?siteId=${siteId}&range=24h`).then(r => r.json());
+                updateOverview(overview);
+
+                // Load errors timeseries
+                const errors = await fetch(`/api/dashboard/timeseries/errors?siteId=${siteId}&range=24h&bucket=1h`).then(r => r.json());
+                updateErrorsChart(errors);
+
+                // Load performance timeseries
+                const perf = await fetch(`/api/dashboard/timeseries/perf?siteId=${siteId}&range=7d&bucket=6h`).then(r => r.json());
+                updatePerfChart(perf);
+                
+                // Load recommendations and issues
+                loadRecommendations(overview);
+                loadRecentIssues(siteId);
+                loadErrorsList(siteId);
+            } catch (error) {
+                console.error('Erro ao carregar dashboard:', error);
+            }
+        }
+        
+        function loadRecommendations(overview) {
+            const recommendations = [];
+            
+            if (overview.uptimePercent < 95) {
+                recommendations.push({
+                    title: 'Uptime Baixo',
+                    description: `Seu uptime está em ${overview.uptimePercent.toFixed(1)}%. O ideal é acima de 99%.`,
+                    action: 'Investigue falhas recorrentes e melhore a infraestrutura do servidor.'
+                });
+            }
+            
+            if (overview.p95LoadTimeMs > 3000) {
+                recommendations.push({
+                    title: 'Performance Lenta',
+                    description: `P95 de ${overview.p95LoadTimeMs}ms está acima do recomendado (< 3000ms).`,
+                    action: 'Otimize imagens, minimize CSS/JS, use CDN e considere cache.'
+                });
+            }
+            
+            const criticalCount = overview.issuesBySeverity?.CRITICAL || 0;
+            if (criticalCount > 0) {
+                recommendations.push({
+                    title: 'Problemas Críticos Ativos',
+                    description: `${criticalCount} problemas críticos detectados.`,
+                    action: 'Resolva problemas críticos imediatamente - eles afetam usuários agora.'
+                });
+            }
+            
+            if (recommendations.length > 0) {
+                document.getElementById('recommendationsSection').style.display = 'block';
+                const content = recommendations.map(rec => `
+                    <div class="recommendation-box">
+                        <h6><strong>${rec.title}</strong></h6>
+                        <p class="mb-2">${rec.description}</p>
+                        <p class="mb-0"><strong>Ação:</strong> ${rec.action}</p>
+                    </div>
+                `).join('');
+                document.getElementById('recommendationsContent').innerHTML = content;
+            } else {
+                document.getElementById('recommendationsSection').style.display = 'none';
+            }
+        }
+        
+        async function loadRecentIssues(siteId) {
+            try {
+                const to = new Date().toISOString();
+                const from = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+                const runs = await fetch(`/api/runs?siteId=${siteId}&from=${from}&to=${to}`).then(r => r.json());
+                
+                const failedRuns = runs.filter(r => r.status === 'FAILED').slice(0, 3);
+                
+                if (failedRuns.length > 0) {
+                    document.getElementById('issuesSection').style.display = 'block';
+                    const content = failedRuns.map(run => `
+                        <div class="alert alert-warning mb-2">
+                            <strong>${new Date(run.startedAt).toLocaleString('pt-BR')}</strong><br>
+                            <small>${run.summary}</small>
+                            <span class="badge-critical ms-2">${run.criticalCount} críticos</span>
+                            <span class="badge-major ms-1">${run.majorCount} maiores</span>
+                        </div>
+                    `).join('');
+                    document.getElementById('issuesContent').innerHTML = content;
+                } else {
+                    document.getElementById('issuesSection').style.display = 'none';
+                }
+            } catch (error) {
+                console.error('Erro ao carregar issues:', error);
+            }
+        }
+        
+        async function loadErrorsList(siteId) {
+            try {
+                const to = new Date().toISOString();
+                const from = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+                const runs = await fetch(`/api/runs?siteId=${siteId}&from=${from}&to=${to}`).then(r => r.json());
+                
+                // Get all failures from all runs
+                const allErrors = [];
+                for (const run of runs) {
+                    if (run.failures && run.failures.length > 0) {
+                        for (const failure of run.failures) {
+                            allErrors.push({
+                                timestamp: run.startedAt,
+                                runId: run.id,
+                                ...failure
+                            });
+                        }
+                    }
+                }
+                
+                if (allErrors.length > 0) {
+                    document.getElementById('errorsListSection').style.display = 'block';
+                    
+                    // Update title with counter
+                    const titleEl = document.getElementById('errorsListTitle');
+                    const displayCount = Math.min(allErrors.length, 50);
+                    const totalCount = allErrors.length;
+                    titleEl.innerHTML = `🔍 Lista Detalhada de Erros <span class="badge bg-danger">${totalCount}</span>`;
+                    if (totalCount > 50) {
+                        titleEl.innerHTML += ` <small class="text-muted">(mostrando primeiros ${displayCount})</small>`;
+                    }
+                    
+                    // Show button to scroll to list
+                    document.getElementById('viewAllErrorsBtn').style.display = 'inline-block';
+                    
+                    const tbody = document.getElementById('errorsTableBody');
+                    tbody.innerHTML = allErrors.slice(0, 50).map(error => `
+                        <tr>
+                            <td><small>${new Date(error.timestamp).toLocaleString('pt-BR', {day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit'})}</small></td>
+                            <td><strong>${error.pageName || 'N/A'}</strong><br><small class="text-muted">${error.url || ''}</small></td>
+                            <td><span class="error-type">${error.type || 'UNKNOWN'}</span></td>
+                            <td><span class="issue-badge badge-${(error.severity || 'minor').toLowerCase()}">${error.severity || 'UNKNOWN'}</span></td>
+                            <td><small>${error.message || error.errorMessage || 'Sem mensagem'}</small></td>
+                        </tr>
+                    `).join('');
+                } else {
+                    document.getElementById('errorsListSection').style.display = 'none';
+                    document.getElementById('viewAllErrorsBtn').style.display = 'none';
+                }
+            } catch (error) {
+                console.error('Erro ao carregar lista de erros:', error);
+                document.getElementById('errorsListSection').style.display = 'none';
+            }
+        }
+
+        function updateOverview(data) {
+            const statusEl = document.getElementById('statusValue');
+            statusEl.textContent = data.status;
+            statusEl.className = 'metric-value status-' + data.status.toLowerCase();
+
+            document.getElementById('uptimeValue').textContent = data.uptimePercent.toFixed(1) + '%';
+            
+            const p95 = data.performance.p95LoadMs;
+            document.getElementById('p95LoadValue').textContent = p95 ? p95 + 'ms' : 'N/A';
+
+            if (data.lastRun) {
+                const date = new Date(data.lastRun.startedAt);
+                document.getElementById('lastRunValue').textContent = date.toLocaleString('pt-BR');
+            } else {
+                document.getElementById('lastRunValue').textContent = 'Nunca';
+            }
+
+            // Update severity chart
+            updateSeverityChart(data.issuesBySeverity);
+        }
+
+        function updateSeverityChart(issues) {
+            const ctx = document.getElementById('severityChart');
+            if (severityChart) severityChart.destroy();
+
+            const hasData = issues && Object.keys(issues).length > 0;
+            const labels = hasData ? Object.keys(issues) : ['Sem Issues'];
+            const values = hasData ? Object.values(issues) : [1];
+            const colors = hasData ? {
+                'CRITICAL': '#dc3545',
+                'MAJOR': '#ffc107',
+                'MINOR': '#17a2b8'
+            } : {'Sem Issues': '#28a745'};
+            
+            const bgColors = labels.map(label => colors[label] || '#6c757d');
+
+            severityChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: values,
+                        backgroundColor: bgColors
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: { position: 'bottom' },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return context.label + ': ' + context.parsed + ' issues';
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateErrorsChart(data) {
+            const ctx = document.getElementById('errorsChart');
+            if (errorsChart) errorsChart.destroy();
+
+            const hasData = data && data.dataPoints && data.dataPoints.length > 0;
+            const labels = hasData ? 
+                data.dataPoints.map(p => new Date(p.timestamp).toLocaleTimeString('pt-BR', {hour: '2-digit', minute: '2-digit'})) :
+                ['Sem dados'];
+            const values = hasData ? data.dataPoints.map(p => p.value) : [0];
+
+            errorsChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Erros por Hora',
+                        data: values,
+                        borderColor: '#dc3545',
+                        backgroundColor: 'rgba(220, 53, 69, 0.1)',
+                        tension: 0.3,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: { 
+                            beginAtZero: true,
+                            ticks: { stepSize: 1 }
+                        }
+                    },
+                    plugins: {
+                        legend: { display: true, position: 'top' },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return 'Erros: ' + context.parsed.y;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function updatePerfChart(data) {
+            const ctx = document.getElementById('perfChart');
+            if (perfChart) perfChart.destroy();
+
+            const hasData = data && data.dataPoints && data.dataPoints.length > 0;
+            const labels = hasData ?
+                data.dataPoints.map(p => new Date(p.timestamp).toLocaleDateString('pt-BR', {month: 'short', day: 'numeric', hour: '2-digit'})) :
+                ['Sem dados'];
+            const values = hasData ? data.dataPoints.map(p => p.value) : [0];
+
+            perfChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Tempo de Carregamento (ms)',
+                        data: values,
+                        borderColor: '#007bff',
+                        backgroundColor: 'rgba(0, 123, 255, 0.1)',
+                        tension: 0.3,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: { 
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return value + 'ms';
+                                }
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: { display: true, position: 'top' },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return 'Load Time: ' + context.parsed.y + 'ms';
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Scroll to errors list
+        function scrollToErrorsList() {
+            const element = document.getElementById('errorsListSection');
+            if (element) {
+                element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                // Highlight the section briefly
+                element.style.transition = 'all 0.3s';
+                element.style.transform = 'scale(1.02)';
+                setTimeout(() => {
+                    element.style.transform = 'scale(1)';
+                }, 300);
+            }
+        }
+
+        // Auto-refresh every 30 seconds
+        setInterval(() => {
+            const siteId = document.getElementById('siteSelector').value;
+            if (siteId) loadDashboard();
+        }, 30000);
+    </script>
+</body>
+</html>

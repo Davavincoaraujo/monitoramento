@@ -26,6 +26,7 @@ monitor:
 
 # Playwright settings
 playwright:
+  browser: firefox  # firefox, chromium, or webkit (firefox is more stable on ARM64 macOS)
   headless: true
   timeout-ms: 30000
   slow-mo-ms: 0

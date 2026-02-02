@@ -1,5 +1,6 @@
 package com.monitoring.api.domain.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -34,9 +35,11 @@ public class Site {
     private LocalDateTime updatedAt;
 
     @OneToMany(mappedBy = "site", cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonIgnoreProperties("site")
     private List<SitePage> pages = new ArrayList<>();
 
     @OneToMany(mappedBy = "site", cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonIgnoreProperties("site")
     private List<Rule> rules = new ArrayList<>();
 
     @PrePersist

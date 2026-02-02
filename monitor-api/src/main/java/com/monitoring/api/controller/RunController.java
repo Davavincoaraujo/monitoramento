@@ -34,7 +34,13 @@ public class RunController {
     @GetMapping("/{id}")
     public ResponseEntity<Run> getRun(@PathVariable Long id) {
         return runRepository.findById(id)
-            .map(ResponseEntity::ok)
+            .map(run -> {
+                // Force lazy loading before serialization
+                run.getPageResults().size();
+                run.getFailures().size();
+                run.getRequestErrors().size();
+                return ResponseEntity.ok(run);
+            })
             .orElse(ResponseEntity.notFound().build());
     }
 }

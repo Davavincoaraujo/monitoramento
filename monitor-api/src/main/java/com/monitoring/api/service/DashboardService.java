@@ -114,17 +114,35 @@ public class DashboardService {
         List<Run> runs = runRepository.findRunsInRange(siteId, from, to);
         
         return runs.stream()
-            .map(r -> new RunSummaryDTO(
-                r.getId(),
-                r.getSite().getId(),
-                r.getStartedAt(),
-                r.getEndedAt(),
-                r.getStatus(),
-                r.getCriticalCount(),
-                r.getMajorCount(),
-                r.getMinorCount(),
-                r.getSummary()
-            ))
+            .map(r -> {
+                // Force lazy loading of failures
+                r.getFailures().size();
+                
+                // Convert failures to DTOs
+                List<FailureDTO> failureDTOs = r.getFailures().stream()
+                    .map(f -> new FailureDTO(
+                        f.getId(),
+                        f.getSeverity(),
+                        f.getType(),
+                        f.getMessage(),
+                        f.getUrl(),
+                        f.getPage() != null ? f.getPage().getName() : null
+                    ))
+                    .collect(Collectors.toList());
+                
+                return new RunSummaryDTO(
+                    r.getId(),
+                    r.getSite().getId(),
+                    r.getStartedAt(),
+                    r.getEndedAt(),
+                    r.getStatus(),
+                    r.getCriticalCount(),
+                    r.getMajorCount(),
+                    r.getMinorCount(),
+                    r.getSummary(),
+                    failureDTOs
+                );
+            })
             .collect(Collectors.toList());
     }
     

@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Monitoramento ao Vivo</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { background-color: #f5f5f5; padding-top: 20px; }
+        .card { margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .navbar { margin-bottom: 30px; }
+        .log-entry { 
+            padding: 10px; 
+            margin: 5px 0; 
+            border-left: 4px solid #007bff;
+            background: white;
+            border-radius: 4px;
+        }
+        .log-entry.success { border-left-color: #28a745; }
+        .log-entry.error { border-left-color: #dc3545; }
+        .log-entry.warning { border-left-color: #ffc107; }
+        .log-time { color: #6c757d; font-size: 0.9rem; }
+        .status-badge { 
+            display: inline-block; 
+            padding: 5px 15px; 
+            border-radius: 20px; 
+            font-weight: bold;
+        }
+        .status-running { background: #17a2b8; color: white; }
+        .status-success { background: #28a745; color: white; }
+        .status-failed { background: #dc3545; color: white; }
+        #logContainer { 
+            max-height: 500px; 
+            overflow-y: auto; 
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+        }
+        .metric-box {
+            padding: 15px;
+            background: white;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+        .metric-value { font-size: 2rem; font-weight: bold; color: #007bff; }
+        .metric-label { color: #6c757d; }
+        .url-input-container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .error-solution {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+        .error-solution-title {
+            font-weight: bold;
+            color: #856404;
+            margin-bottom: 5px;
+        }
+        .history-item {
+            cursor: pointer;
+            padding: 8px 12px;
+            border-radius: 4px;
+            margin: 5px 0;
+            background: #e9ecef;
+        }
+        .history-item:hover {
+            background: #dee2e6;
+        }
+        .action-buttons {
+            margin-top: 20px;
+            text-align: center;
+        }
+        .btn-dashboard {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 12px 30px;
+            border: none;
+            border-radius: 25px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            cursor: pointer;
+            margin: 0 10px;
+        }
+        .btn-dashboard:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container">
+            <a class="navbar-brand" href="/">📊 Monitor Dashboard</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item"><a class="nav-link" href="/">Dashboard</a></li>
+                    <li class="nav-item"><a class="nav-link active" href="/live.html">Monitoramento ao Vivo</a></li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="row">
+            <div class="col-md-8 offset-md-2">
+                <div class="url-input-container mb-4">
+                    <h2 class="text-center mb-4">🔍 Monitorar Site ao Vivo</h2>
+                    
+                    <!-- History dropdown -->
+                    <div class="mb-3" id="historySection" style="display: none;">
+                        <label class="form-label">📜 Histórico de URLs</label>
+                        <div id="historyList"></div>
+                    </div>
+                    
+                    <div class="input-group input-group-lg mb-3">
+                        <input type="text" id="urlInput" class="form-control" 
+                               placeholder="https://example.com" 
+                               value="https://example.com">
+                        <button class="btn btn-primary" onclick="startMonitoring()" id="startBtn">
+                            ▶ Iniciar Monitoramento
+                        </button>
+                    </div>
+                    <div class="text-center">
+                        <small class="text-muted">Digite uma URL completa e clique em Iniciar para ver o monitoramento em tempo real</small>
+                    </div>
+                </div>
+
+                <div id="monitoringPanel" style="display: none;">
+                    <!-- Status -->
+                    <div class="card">
+                        <div class="card-body text-center">
+                            <h5>Status</h5>
+                            <span id="statusBadge" class="status-badge status-running">Aguardando...</span>
+                        </div>
+                    </div>
+
+                    <!-- Metrics -->
+                    <div class="row" id="metricsPanel" style="display: none;">
+                        <div class="col-md-3">
+                            <div class="metric-box">
+                                <div class="metric-value" id="ttfbValue">-</div>
+                                <div class="metric-label">TTFB (ms)</div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="metric-box">
+                                <div class="metric-value" id="domValue">-</div>
+                                <div class="metric-label">DOM (ms)</div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="metric-box">
+                                <div class="metric-value" id="loadValue">-</div>
+                                <div class="metric-label">Load (ms)</div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="metric-box">
+                                <div class="metric-value" id="requestsValue">-</div>
+                                <div class="metric-label">Requests</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Logs -->
+                    <div class="card">
+                        <div class="card-body">
+                            <h5>Log em Tempo Real</h5>
+                            <div id="logContainer"></div>
+                        </div>
+                    </div>
+                    
+                    <!-- Action Buttons -->
+                    <div class="action-buttons" id="actionButtons" style="display: none;">
+                        <button class="btn-dashboard" onclick="viewDashboard()">
+                            📊 Ver Dashboard Completo
+                        </button>
+                        <button class="btn btn-secondary" onclick="newMonitoring()">
+                            🔄 Novo Monitoramento
+                        </button>
+                    </div>
+                    
+                    <!-- Error Solutions -->
+                    <div id="solutionsContainer"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let eventSource = null;
+        let currentSiteId = null;
+        let currentUrl = null;
+        
+        // Load history on page load
+        window.addEventListener('DOMContentLoaded', loadHistory);
+
+        function loadHistory() {
+            const history = JSON.parse(localStorage.getItem('monitorHistory') || '[]');
+            if (history.length > 0) {
+                document.getElementById('historySection').style.display = 'block';
+                const historyList = document.getElementById('historyList');
+                historyList.innerHTML = history.slice(0, 5).map(item => 
+                    `<div class="history-item" onclick="selectFromHistory('${item.url}')">
+                        ${item.url} <small class="text-muted">(${new Date(item.timestamp).toLocaleString('pt-BR')})</small>
+                    </div>`
+                ).join('');
+            }
+        }
+        
+        function selectFromHistory(url) {
+            document.getElementById('urlInput').value = url;
+        }
+        
+        function saveToHistory(url) {
+            let history = JSON.parse(localStorage.getItem('monitorHistory') || '[]');
+            // Remove duplicates
+            history = history.filter(item => item.url !== url);
+            // Add to beginning
+            history.unshift({ url, timestamp: Date.now() });
+            // Keep only last 10
+            history = history.slice(0, 10);
+            localStorage.setItem('monitorHistory', JSON.stringify(history));
+            loadHistory();
+        }
+        
+        function viewDashboard() {
+            if (currentSiteId) {
+                window.open(`/?siteId=${currentSiteId}`, '_blank');
+            }
+        }
+        
+        function newMonitoring() {
+            document.getElementById('urlInput').value = '';
+            document.getElementById('monitoringPanel').style.display = 'none';
+            document.getElementById('actionButtons').style.display = 'none';
+            document.getElementById('solutionsContainer').innerHTML = '';
+            if (eventSource) {
+                eventSource.close();
+            }
+        }
+
+        function addLog(message, type = 'info') {
+            const logContainer = document.getElementById('logContainer');
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            
+            const time = new Date().toLocaleTimeString('pt-BR');
+            entry.innerHTML = `
+                <span class="log-time">${time}</span> - ${message}
+            `;
+            
+            logContainer.insertBefore(entry, logContainer.firstChild);
+            
+            // Keep only last 50 entries
+            while (logContainer.children.length > 50) {
+                logContainer.removeChild(logContainer.lastChild);
+            }
+        }
+
+        function updateStatus(status, message) {
+            const badge = document.getElementById('statusBadge');
+            badge.textContent = message;
+            badge.className = `status-badge status-${status}`;
+        }
+
+        async function startMonitoring() {
+            const url = document.getElementById('urlInput').value.trim();
+            
+            if (!url) {
+                alert('Por favor, digite uma URL válida');
+                return;
+            }
+
+            if (!url.startsWith('http://') && !url.startsWith('https://')) {
+                alert('A URL deve começar com http:// ou https://');
+                return;
+            }
+
+            currentUrl = url;
+            saveToHistory(url);
+
+            // Stop previous monitoring
+            if (eventSource) {
+                eventSource.close();
+            }
+
+            // Clear logs and solutions
+            document.getElementById('logContainer').innerHTML = '';
+            document.getElementById('solutionsContainer').innerHTML = '';
+            document.getElementById('monitoringPanel').style.display = 'block';
+            document.getElementById('metricsPanel').style.display = 'none';
+            document.getElementById('actionButtons').style.display = 'none';
+            
+            updateStatus('running', '🔄 Iniciando monitoramento...');
+            addLog(`Iniciando monitoramento para: ${url}`, 'info');
+
+            try {
+                // Create or get site
+                const siteResponse = await fetch('/api/sites', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        name: `Live Monitor - ${url}`,
+                        baseUrl: url,
+                        enabled: true,
+                        frequencySeconds: 300
+                    })
+                });
+
+                if (!siteResponse.ok) {
+                    throw new Error('Erro ao criar site para monitoramento');
+                }
+
+                const site = await siteResponse.json();
+                currentSiteId = site.id;
+
+                addLog(`Site configurado (ID: ${site.id})`, 'success');
+
+                // Trigger immediate check
+                const checkResponse = await fetch(`/api/sites/${site.id}/check`, {
+                    method: 'POST'
+                });
+
+                if (checkResponse.ok) {
+                    addLog('Check iniciado! Aguardando resultados...', 'info');
+                    updateStatus('running', '🔄 Executando verificação...');
+                } else {
+                    addLog('Erro ao iniciar check', 'error');
+                }
+
+                // Connect to SSE for real-time updates
+                connectSSE(site.id);
+
+            } catch (error) {
+                addLog(`Erro: ${error.message}`, 'error');
+                updateStatus('failed', '❌ Erro');
+                console.error('Error:', error);
+            }
+        }
+
+        function connectSSE(siteId) {
+            if (eventSource) {
+                eventSource.close();
+            }
+
+            addLog('Conectando ao stream de eventos...', 'info');
+            
+            eventSource = new EventSource(`/api/events?siteId=${siteId}`);
+
+            eventSource.onopen = () => {
+                addLog('✅ Conectado ao stream de eventos em tempo real', 'success');
+            };
+
+            eventSource.addEventListener('run_completed', (event) => {
+                const data = JSON.parse(event.data);
+                addLog(`Run completado! Status: ${data.status}`, data.status === 'SUCCESS' ? 'success' : 'error');
+                
+                if (data.status === 'SUCCESS') {
+                    updateStatus('success', '✅ Monitoramento Concluído');
+                    displayMetrics(data);
+                } else {
+                    updateStatus('failed', '❌ Falha no Monitoramento');
+                    addLog(`${data.critical || 0} problemas críticos, ${data.major || 0} problemas maiores`, 'error');
+                    displayFailures(data);
+                }
+            });
+
+            eventSource.addEventListener('failure_detected', (event) => {
+                const data = JSON.parse(event.data);
+                addLog(`⚠️ Falha detectada: ${data.type} - ${data.message}`, 'warning');
+            });
+
+            eventSource.onerror = (error) => {
+                console.error('SSE Error:', error);
+                addLog('Erro na conexão do stream de eventos', 'error');
+                eventSource.close();
+            };
+        }
+
+        function displayMetrics(data) {
+            document.getElementById('metricsPanel').style.display = 'flex';
+            document.getElementById('actionButtons').style.display = 'block';
+            
+            addLog(`Buscando métricas do run ${data.runId}...`, 'info');
+            
+            // Fetch detailed metrics
+            fetch(`/api/runs/${data.runId}`)
+                .then(r => {
+                    if (!r.ok) {
+                        throw new Error(`HTTP ${r.status}`);
+                    }
+                    return r.json();
+                })
+                .then(run => {
+                    if (run.pageResults && run.pageResults.length > 0) {
+                        const result = run.pageResults[0];
+                        document.getElementById('ttfbValue').textContent = result.ttfbMs || '-';
+                        document.getElementById('domValue').textContent = result.domMs || '-';
+                        document.getElementById('loadValue').textContent = result.loadMs || '-';
+                        document.getElementById('requestsValue').textContent = result.requestsCount || '-';
+                        
+                        addLog(`📊 Métricas: TTFB=${result.ttfbMs}ms, DOM=${result.domMs}ms, Load=${result.loadMs}ms`, 'success');
+                    } else {
+                        addLog('⚠️ Nenhuma métrica disponível para este run', 'warning');
+                    }
+                })
+                .catch(err => {
+                    addLog(`Erro ao buscar métricas: ${err.message}`, 'error');
+                    console.error('Error fetching metrics:', err);
+                });
+        }
+        
+        function displayFailures(data) {
+            addLog(`Buscando detalhes das falhas do run ${data.runId}...`, 'info');
+            
+            fetch(`/api/runs/${data.runId}`)
+                .then(r => {
+                    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+                    return r.json();
+                })
+                .then(run => {
+                    document.getElementById('actionButtons').style.display = 'block';
+                    
+                    if (run.failures && run.failures.length > 0) {
+                        // Group failures by type
+                        const failuresByType = {};
+                        run.failures.forEach(f => {
+                            const key = `${f.type}: ${f.message}`;
+                            failuresByType[key] = (failuresByType[key] || 0) + 1;
+                        });
+                        
+                        // Show top 5 failure types
+                        Object.entries(failuresByType)
+                            .sort((a, b) => b[1] - a[1])
+                            .slice(0, 5)
+                            .forEach(([msg, count]) => {
+                                addLog(`⚠️ ${count}x ${msg}`, 'warning');
+                            });
+                        
+                        // Show solutions
+                        displaySolutions(run.failures);
+                    }
+                    
+                    if (run.requestErrors && run.requestErrors.length > 0) {
+                        addLog(`${run.requestErrors.length} erros de requisição detectados`, 'warning');
+                    }
+                })
+                .catch(err => {
+                    addLog(`Erro ao buscar detalhes: ${err.message}`, 'error');
+                });
+        }
+        
+        function displaySolutions(failures) {
+            const errorTypes = [...new Set(failures.map(f => f.type))];
+            const solutionsContainer = document.getElementById('solutionsContainer');
+            
+            const solutions = {
+                'REQUEST_FAILED': {
+                    title: '🔧 Como corrigir: Requisições Falhadas',
+                    description: 'Recursos externos não estão carregando (imagens, scripts, CSS)',
+                    steps: [
+                        '• Verifique se os recursos existem nos caminhos especificados',
+                        '• Confirme que o servidor está respondendo (tente acessar a URL diretamente)',
+                        '• Verifique CORS headers se for domínio diferente',
+                        '• Considere usar CDNs para recursos críticos',
+                        '• Implemente fallbacks para recursos que podem falhar'
+                    ]
+                },
+                'JS_ERROR': {
+                    title: '🔧 Como corrigir: Erros JavaScript',
+                    description: 'Erros de JavaScript detectados durante a execução da página',
+                    steps: [
+                        '• Verifique se todos os elementos DOM necessários existem antes de usar',
+                        '• Use verificações de null/undefined: if (elemento) { ... }',
+                        '• Garanta que bibliotecas sejam carregadas na ordem correta',
+                        '• Use try-catch para código que pode falhar',
+                        '• Teste em diferentes navegadores e ambientes'
+                    ]
+                },
+                'NAVIGATION_FAILED': {
+                    title: '🔧 Como corrigir: Falha de Navegação',
+                    description: 'Não foi possível acessar a página',
+                    steps: [
+                        '• Verifique se a URL está correta',
+                        '• Confirme que o servidor está online e acessível',
+                        '• Verifique firewall e regras de segurança',
+                        '• Teste o tempo de resposta do servidor',
+                        '• Verifique se há bloqueio de bots/automação'
+                    ]
+                },
+                'CONSOLE_ERROR': {
+                    title: '🔧 Como corrigir: Erros no Console',
+                    description: 'Mensagens de erro foram logadas no console do navegador',
+                    steps: [
+                        '• Revise os logs do console para identificar a causa',
+                        '• Corrija warnings antes que se tornem erros',
+                        '• Use ferramentas de debug do navegador',
+                        '• Implemente logging estruturado',
+                        '• Configure alertas para erros críticos'
+                    ]
+                }
+            };
+            
+            let html = '<div class="card mt-4"><div class="card-body"><h5>💡 Guia de Soluções</h5>';
+            
+            errorTypes.forEach(type => {
+                if (solutions[type]) {
+                    const sol = solutions[type];
+                    html += `
+                        <div class="error-solution">
+                            <div class="error-solution-title">${sol.title}</div>
+                            <p><small>${sol.description}</small></p>
+                            ${sol.steps.map(step => `<div><small>${step}</small></div>`).join('')}
+                        </div>
+                    `;
+                }
+            });
+            
+            html += '</div></div>';
+            solutionsContainer.innerHTML = html;
+        }
+
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', () => {
+            if (eventSource) {
+                eventSource.close();
+            }
+        });
+    </script>
+</body>
+</html>

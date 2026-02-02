@@ -1,5 +1,6 @@
 package com.monitoring.api.domain.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
@@ -12,6 +13,7 @@ public class RequestError {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "run_id", nullable = false)
+    @JsonIgnoreProperties({"site", "pageResults", "failures", "requestErrors"})
     private Run run;
 
     @Column(name = "resource_type", nullable = false, length = 50)
