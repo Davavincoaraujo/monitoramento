@@ -4,8 +4,6 @@ services:
     name: monitor-postgres
     plan: free
     region: oregon
-    databaseName: monitoring
-    databaseUser: monitor
 
   # Monitor API (Web Service)
   - type: web
