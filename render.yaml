@@ -1,10 +1,4 @@
 services:
-  # PostgreSQL Database (Free)
-  - type: pserv
-    name: monitor-postgres
-    plan: free
-    region: oregon
-
   # Monitor API (Web Service)
   - type: web
     name: monitor-api
@@ -23,3 +17,8 @@ services:
           property: connectionString
       - key: JAVA_OPTS
         value: "-Xmx512m -Xms256m"
+
+databases:
+  - name: monitor-postgres
+    plan: free
+    region: oregon
