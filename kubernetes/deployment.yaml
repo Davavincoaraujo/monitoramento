@@ -1,0 +1,138 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: monitor-api
+  namespace: monitoring
+  labels:
+    app: monitor-api
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: monitor-api
+  template:
+    metadata:
+      labels:
+        app: monitor-api
+    spec:
+      containers:
+      - name: monitor-api
+        image: monitor-api:1.0.0
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8080
+          name: http
+        env:
+        - name: JAVA_OPTS
+          value: "-Xmx512m -Xms256m"
+        - name: SPRING_PROFILES_ACTIVE
+          value: "production"
+        
+        # Health Probes
+        livenessProbe:
+          httpGet:
+            path: /actuator/health/liveness
+            port: 8080
+          initialDelaySeconds: 60
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        
+        readinessProbe:
+          httpGet:
+            path: /actuator/health/readiness
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+        
+        # Resources
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "1000m"
+        
+        # Volume mounts
+        volumeMounts:
+        - name: config
+          mountPath: /config
+          readOnly: true
+      
+      volumes:
+      - name: config
+        configMap:
+          name: monitor-api-config
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: monitor-runner
+  namespace: monitoring
+  labels:
+    app: monitor-runner
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: monitor-runner
+  template:
+    metadata:
+      labels:
+        app: monitor-runner
+    spec:
+      containers:
+      - name: monitor-runner
+        image: monitor-runner:1.0.0
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8081
+          name: http
+        env:
+        - name: JAVA_OPTS
+          value: "-Xmx768m -Xms384m"
+        - name: SPRING_PROFILES_ACTIVE
+          value: "production"
+        
+        # Health Probes
+        livenessProbe:
+          httpGet:
+            path: /actuator/health/liveness
+            port: 8081
+          initialDelaySeconds: 90
+          periodSeconds: 15
+          timeoutSeconds: 5
+          failureThreshold: 3
+        
+        readinessProbe:
+          httpGet:
+            path: /actuator/health/readiness
+            port: 8081
+          initialDelaySeconds: 45
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        
+        # Resources (runner needs more for Playwright)
+        resources:
+          requests:
+            memory: "1Gi"
+            cpu: "500m"
+          limits:
+            memory: "2Gi"
+            cpu: "2000m"
+        
+        # Volume mounts
+        volumeMounts:
+        - name: config
+          mountPath: /config
+          readOnly: true
+      
+      volumes:
+      - name: config
+        configMap:
+          name: monitor-runner-config

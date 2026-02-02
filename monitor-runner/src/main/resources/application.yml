@@ -17,6 +17,40 @@ spring:
 server:
   port: 8081
 
+# Actuator Configuration
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+      base-path: /actuator
+  endpoint:
+    health:
+      show-details: always
+      probes:
+        enabled: true
+  health:
+    livenessstate:
+      enabled: true
+    readinessstate:
+      enabled: true
+
+# Resilience4j Retry
+resilience4j:
+  retry:
+    instances:
+      playwright:
+        max-attempts: 3
+        wait-duration: 2s
+        enable-exponential-backoff: true
+        exponential-backoff-multiplier: 2
+        retry-exceptions:
+          - java.net.SocketTimeoutException
+          - java.net.ConnectException
+          - com.microsoft.playwright.TimeoutError
+        ignore-exceptions:
+          - java.lang.IllegalArgumentException
+
 # Monitor API client
 monitor:
   api:

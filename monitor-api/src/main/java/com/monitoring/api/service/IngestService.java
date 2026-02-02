@@ -206,10 +206,6 @@ public class IngestService {
         // Publish SSE event
         eventPublisher.publishRunCompleted(run);
         
-        return new IngestRunResponse(
-            run.getId(),
-            "SUCCESS",
-            "Run ingested successfully"
-        );
+        return new IngestRunResponse(run.getId());
     }
 }

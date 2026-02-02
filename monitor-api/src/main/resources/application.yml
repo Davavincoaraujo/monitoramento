@@ -57,6 +57,36 @@ server:
   compression:
     enabled: true
 
+# Actuator Configuration
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+      base-path: /actuator
+  endpoint:
+    health:
+      show-details: always
+      probes:
+        enabled: true
+  health:
+    livenessstate:
+      enabled: true
+    readinessstate:
+      enabled: true
+
+# Resilience4j Rate Limiter
+resilience4j:
+  ratelimiter:
+    instances:
+      ingest:
+        limit-for-period: 10
+        limit-refresh-period: 60s
+        timeout-duration: 0s
+        allow-health-indicator-to-fail: true
+        subscribe-for-events: true
+        event-consumer-buffer-size: 50
+
 # Quartz Scheduler
 spring.quartz:
   job-store-type: memory

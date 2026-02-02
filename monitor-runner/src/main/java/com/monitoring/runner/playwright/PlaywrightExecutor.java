@@ -3,6 +3,7 @@ package com.monitoring.runner.playwright;
 import com.microsoft.playwright.*;
 import com.microsoft.playwright.options.LoadState;
 import com.monitoring.runner.dto.*;
+import io.github.resilience4j.retry.annotation.Retry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -24,6 +25,22 @@ import java.util.List;
  *   <li>Validação de requests HTTP</li>
  *   <li>Captura de falhas e screenshots (se necessário)</li>
  * </ul>
+ * 
+ * <p><b>Retry Policy com Backoff Exponencial:</b></p>
+ * <pre>
+ * Max tentativas: 3
+ * Wait inicial: 2s
+ * Multiplicador: 2x (2s, 4s, 8s)
+ * 
+ * Faz retry apenas para:
+ * - SocketTimeoutException (timeout de rede)
+ * - ConnectException (falha de conexão)
+ * - TimeoutError (timeout do Playwright)
+ * 
+ * NÃO faz retry para:
+ * - IllegalArgumentException (erro de validação)
+ * - Erros de negócio (404, 500, etc)
+ * </pre>
  * 
  * <p><b>Browsers suportados:</b></p>
  * <pre>
@@ -102,6 +119,17 @@ public class PlaywrightExecutor {
     @Value("${playwright.browser:firefox}")
     private String browserType;
     
+    /**
+     * Executa check sintético em um site com retry automático.
+     * 
+     * <p><b>Retry Policy:</b> Até 3 tentativas com backoff exponencial (2s, 4s, 8s)
+     * em caso de erros de rede ou timeout.</p>
+     * 
+     * @param siteConfig Configuração do site com páginas a serem testadas
+     * @return IngestRunRequest com todos os resultados coletados
+     * @throws com.microsoft.playwright.TimeoutError se timeout após todas as tentativas
+     */
+    @Retry(name = "playwright")
     public IngestRunRequest executeCheck(SiteConfig siteConfig) {
         log.info("Starting check for site: {} ({})", siteConfig.name(), siteConfig.siteId());
         

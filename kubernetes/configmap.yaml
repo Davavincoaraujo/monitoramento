@@ -1,0 +1,82 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: monitor-api-config
+  namespace: monitoring
+data:
+  application.yml: |
+    spring:
+      application:
+        name: monitor-api
+      datasource:
+        url: jdbc:postgresql://postgres-service:5432/monitoring
+        username: monitor
+        password: monitor123
+      rabbitmq:
+        host: rabbitmq-service
+        port: 5672
+        username: monitor
+        password: monitor123
+    
+    management:
+      endpoints:
+        web:
+          exposure:
+            include: health,info,metrics,prometheus
+      endpoint:
+        health:
+          show-details: always
+          probes:
+            enabled: true
+      health:
+        livenessstate:
+          enabled: true
+        readinessstate:
+          enabled: true
+    
+    monitoring:
+      default-check-frequency-seconds: 300
+      max-concurrent-runs: 5
+      data-retention-days: 30
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: monitor-runner-config
+  namespace: monitoring
+data:
+  application.yml: |
+    spring:
+      application:
+        name: monitor-runner
+      rabbitmq:
+        host: rabbitmq-service
+        port: 5672
+        username: monitor
+        password: monitor123
+    
+    management:
+      endpoints:
+        web:
+          exposure:
+            include: health,info,metrics,prometheus
+      endpoint:
+        health:
+          show-details: always
+          probes:
+            enabled: true
+      health:
+        livenessstate:
+          enabled: true
+        readinessstate:
+          enabled: true
+    
+    monitor:
+      api:
+        base-url: http://monitor-api-service:8080
+    
+    playwright:
+      browser: firefox
+      headless: true
+      timeout-ms: 30000
